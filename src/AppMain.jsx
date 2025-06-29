@@ -13,6 +13,7 @@ function AppMain() {
         navigate("login");
 
     }, []);
+    
     return (
         <AppRoutes/>
     )
