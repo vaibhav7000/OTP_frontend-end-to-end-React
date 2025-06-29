@@ -1,12 +1,20 @@
 import { useCallback } from "react";
+import { useState } from "react";
 import { useEffect } from "react";
 import { useRef } from "react";
+import { useNavigate } from "react-router";
+import * as z from "zod";
 
 export default function Login() {
     const inputBox1 = useRef();
     const inputBox2 = useRef();
     const inputBox3 = useRef();
     const inputBox4 = useRef();
+    const emailInput = useRef();
+
+    const navigate = useNavigate();
+
+    const [userEmail, setUserEmail] = useState("");
 
     const buttonAction = useCallback(async function () {
         if (inputBox1.current.value && inputBox2.current.value && inputBox3.current.value && inputBox4.current.value) {
@@ -17,19 +25,20 @@ export default function Login() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    email: "vaibhavchawla381@gmail.com",
+                    email: userEmail,
                     otp: `${inputBox1.current.value}${inputBox2.current.value}${inputBox3.current.value}${inputBox4.current.value}`
                 })
             })
 
             const output = await response.json();
 
-            if(output.status === 500 || output.status === 400 || output.status === 410 || output.status === 401) {
+            if(response.status === 500 || response.status === 400 || response.status === 410 || response.status === 401) {
                 alert(output.msg);
                 return
             }
 
             alert(output.msg);
+            navigate("/");
 
             return;
             
@@ -37,7 +46,7 @@ export default function Login() {
 
         alert("Invalid OTP");
         inputBox4.current.focus();
-    }, [])
+    }, [userEmail])
 
     const checkNumbers = useCallback(function(value) {
         return parseInt(value) || parseInt(value) === 0 ? true : false; 
@@ -45,14 +54,30 @@ export default function Login() {
 
     useEffect(() => {
         // want to run only once when the component renders
-        inputBox1.current.focus();
+        userEmail && inputBox1.current.focus();
+    }, [userEmail]);
+
+    useEffect(() => {
+        emailInput.current.focus();
     }, []);
 
     return (
         <div className="login-container" style={{
             display: "flex", flexDirection: "column", gap: 20, alignItems: "center"
         }}>
-            <div className="input-box-container" style={{
+            {!userEmail && <div className="login-input" style={{
+                display: "flex", flexDirection: "column", gap: 20
+            }}>
+                <div className="heading" style={{
+                    fontSize: 30, 
+                }}>
+                    {"Login via OTP"}
+                </div>
+
+                <input ref={emailInput} type="email" placeholder="enter valid email" />
+            </div>}
+
+            {userEmail && <div className="input-box-container" style={{
                 display: "flex", flexDirection: "row", gap: 20
             }}>
                 {/* input box 1 */}
@@ -179,12 +204,42 @@ export default function Login() {
                 }} />
 
 
-            </div>
+            </div>}
 
             <button onClick={() => {
-                buttonAction()
+                userEmail ? buttonAction() : ( async function() {
+                    // this is called iife
+                    const emailSchema = z.string().email();
+
+                    if(!emailSchema.safeParse(emailInput.current.value).success) {
+                        alert("enter valid email")
+                        return;
+                    }
+                    // send request for otp
+                    const response = await fetch("http://localhost:3000/otp/get-otp", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            email: emailInput.current.value
+                        })
+                    })
+
+                    const output = await response.json();
+                    console.log(emailInput.current.value);
+                    if(response.status === 200) {
+                        setUserEmail(emailInput.current.value);
+                        alert(output.msg)
+                        return
+                    }
+
+                    alert(output.msg)
+                    
+
+                })();
             }}>
-                Submit
+                {userEmail ? "Submit OTP" : "Send OTP"}
             </button>
         </div>
     )
